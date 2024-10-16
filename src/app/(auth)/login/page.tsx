@@ -1,23 +1,14 @@
 "use client";
-import { useState } from "react";
+
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { Loader } from "lucide-react";
 import Image from "next/image";
+// import { useFormState } from "react-dom";
+import { SubmitButton } from "~/components/submit-button";
 
-export default function SignUpForm() {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  async function onSubmit(event: React.SyntheticEvent) {
-    event.preventDefault();
-    setIsLoading(true);
-
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 3000);
-  }
-
+export default function Login() {
+  //   const [state, formAction] = useFormState(login, null);
   return (
     <div className="flex min-h-screen">
       <div className="flex w-full flex-col justify-center bg-black p-8 text-white lg:w-1/2">
@@ -26,7 +17,7 @@ export default function SignUpForm() {
           <p className="mb-8 text-gray-400">
             To use clingram, Please enter your details.
           </p>
-          <form onSubmit={onSubmit}>
+          <form>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
@@ -57,14 +48,22 @@ export default function SignUpForm() {
                   className="border-gray-700 bg-gray-800"
                 />
               </div>
-              <Button
-                className="w-full bg-indigo-500 hover:bg-indigo-600"
-                type="submit"
-                disabled={isLoading}
-              >
-                {isLoading && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-                Sign Up
-              </Button>
+              {/* {state?.fieldError ? (
+                <ul className="bg-destructive/10 text-destructive list-disc space-y-1 rounded-lg border p-2 text-[0.8rem] font-medium">
+                  {Object.values(state.fieldError).map((err) => (
+                    <li className="ml-4" key={err}>
+                      {err}
+                    </li>
+                  ))}
+                </ul>
+              ) : state?.formError ? (
+                <p className="bg-destructive/10 text-destructive rounded-lg border p-2 text-[0.8rem] font-medium">
+                  {state?.formError}
+                </p>
+              ) : null} */}
+              <SubmitButton className="w-full" aria-label="submit-btn">
+                Log In
+              </SubmitButton>
             </div>
           </form>
           <div className="relative my-4">
