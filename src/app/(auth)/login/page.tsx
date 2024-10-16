@@ -6,6 +6,7 @@ import { Label } from "~/components/ui/label";
 import Image from "next/image";
 // import { useFormState } from "react-dom";
 import { SubmitButton } from "~/components/submit-button";
+import { APP_TITLE } from "~/lib/constants";
 
 export default function Login() {
   //   const [state, formAction] = useFormState(login, null);
@@ -15,7 +16,7 @@ export default function Login() {
         <div className="mx-auto w-full max-w-md">
           <h2 className="mb-2 text-3xl font-bold">Create a new account</h2>
           <p className="mb-8 text-gray-400">
-            To use clingram, Please enter your details.
+            To use {APP_TITLE}, Please enter your details.
           </p>
           <form>
             <div className="space-y-4">
