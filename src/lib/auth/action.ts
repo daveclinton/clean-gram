@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/prefer-optional-chain */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { redirect } from "next/navigation";
 import {
@@ -18,8 +19,11 @@ import {
 } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { generateRandomString, alphabet } from "oslo/crypto";
-import { createDate, TimeSpan } from "oslo";
+import { createDate, isWithinExpirationDate, TimeSpan } from "oslo";
 import { EmailTemplate, sendMail } from "../email";
+import { validateRequest } from "./validate-request";
+import { z } from "zod";
+import { env } from "~/env";
 
 export interface ActionResponse<T> {
   fieldError?: Partial<Record<keyof T, string | undefined>>;
@@ -129,6 +133,84 @@ export async function signup(
   return redirect(Paths.VerifyEmail);
 }
 
+export async function logout(): Promise<{ error: string } | void> {
+  const { session } = await validateRequest();
+  if (!session) {
+    return {
+      error: "No session found",
+    };
+  }
+  await lucia.invalidateSession(session.id);
+  const sessionCookie = lucia.createBlankSessionCookie();
+  cookies().set(
+    sessionCookie.name,
+    sessionCookie.value,
+    sessionCookie.attributes,
+  );
+  return redirect("/");
+}
+
+export async function resendVerificationEmail(): Promise<{
+  error?: string;
+  success?: boolean;
+}> {
+  const { user } = await validateRequest();
+  if (!user) {
+    return redirect(Paths.Login);
+  }
+  const lastSent = await db.query.emailVerificationCodes.findFirst({
+    where: (table, { eq }) => eq(table.userId, user.id),
+    columns: { expiresAt: true },
+  });
+
+  if (lastSent && isWithinExpirationDate(lastSent.expiresAt)) {
+    return {
+      error: `Please wait ${timeFromNow(lastSent.expiresAt)} before resending`,
+    };
+  }
+  const verificationCode = await generateEmailVerificationCode(
+    user.id,
+    user.email,
+  );
+  await sendMail(user.email, EmailTemplate.EmailVerification, {
+    code: verificationCode,
+  });
+
+  return { success: true };
+}
+
+export async function sendPasswordResetLink(
+  _: any,
+  formData: FormData,
+): Promise<{ error?: string; success?: boolean }> {
+  const email = formData.get("email");
+  const parsed = z.string().trim().email().safeParse(email);
+  if (!parsed.success) {
+    return { error: "Provided email is invalid." };
+  }
+  try {
+    const user = await db.query.users.findFirst({
+      where: (table, { eq }) => eq(table.email, parsed.data),
+    });
+
+    if (!user || !user.emailVerified)
+      return { error: "Provided email is invalid." };
+
+    const verificationToken = await generatePasswordResetToken(user.id);
+
+    const verificationLink = `${env.NEXTAUTH_URL}/reset-password/${verificationToken}`;
+
+    await sendMail(user.email, EmailTemplate.PasswordReset, {
+      link: verificationLink,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.log(error);
+    return { error: "Failed to send verification email." };
+  }
+}
+
 async function generateEmailVerificationCode(
   userId: string,
   email: string,
@@ -160,3 +242,10 @@ async function generatePasswordResetToken(userId: string): Promise<string> {
   });
   return tokenId;
 }
+const timeFromNow = (time: Date) => {
+  const now = new Date();
+  const diff = time.getTime() - now.getTime();
+  const minutes = Math.floor(diff / 1000 / 60);
+  const seconds = Math.floor(diff / 1000) % 60;
+  return `${minutes}m ${seconds}s`;
+};
